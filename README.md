@@ -12,7 +12,7 @@ A simple Neovim plugin to automatically switch colorschemes based on the filetyp
 
 ## Installation
 
-Use your favorite plugin manager. Example with `packer.nvim`:
+Use your favorite plugin manager. Example with `lazy.nvim`:
 
 return {
   "BillieLurk/autoScheme.nvim",
@@ -38,6 +38,7 @@ return {
   - `colorscheme`: The colorscheme to apply when that filetype is active.
 
 Example:
+
     require("autoScheme").setup({
       default = "dogrun",
       schemes = {
