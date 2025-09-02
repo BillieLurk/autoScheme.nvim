@@ -14,19 +14,20 @@ A simple Neovim plugin to automatically switch colorschemes based on the filetyp
 
 Use your favorite plugin manager. Example with `lazy.nvim`:
 
-return {
-  "BillieLurk/autoScheme.nvim",
-  config = function()
-    require("autoScheme").setup({
-      default = "dogrun", <---- YOUR DEFAULT COLORSCHEME/FALLBACK. 
-      schemes = { <---- tables of file types and what colorscheme to use for the filetype
-        { filetype = "lua", colorscheme = "kanagawa" },
-        { filetype = "javascript", colorscheme = "sonokai" },
-        { filetype = "markdown", colorscheme = "carbonfox" },
-      },
+    return {
+      "BillieLurk/autoScheme.nvim",
+      config = function()
+        require("autoScheme").setup({
+          default = "dogrun", <---- YOUR DEFAULT COLORSCHEME/FALLBACK. 
+          schemes = { <---- tables of file types and what colorscheme to use for the filetype
+            { filetype = "lua", colorscheme = "kanagawa" },
+            { filetype = "javascript", colorscheme = "sonokai" },
+            { filetype = "markdown", colorscheme = "carbonfox" },
+          },
+        })
+      end,
     })
-  end,
-}
+
 
 ## Configuration
 
