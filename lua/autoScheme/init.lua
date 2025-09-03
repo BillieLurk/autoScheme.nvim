@@ -3,41 +3,91 @@ local M = {}
 M.config = {
 	schemes = {},
 	default = "",
+	once_per_buffer = true,
+	defer_ms = 5, -- small delay to avoid UI race
+	refresh_lualine = true, -- refresh lualine after changing scheme
 }
+
+local applied = {} ---@type table<integer, boolean>
+
+local function refresh_lualine()
+	local ok, lualine = pcall(require, "lualine")
+	if ok and type(lualine.refresh) == "function" then
+		lualine.refresh({
+			place = { "statusline", "tabline", "winbar" },
+			trigger = "colorscheme",
+			reload_theme = true,
+		})
+	end
+end
+
+local function apply_colorscheme(name, cfg)
+	if not name or name == "" or vim.g.colors_name == name then
+		return
+	end
+	local ok = pcall(function()
+		vim.cmd.colorscheme(name)
+	end)
+	if not ok then
+		vim.schedule(function()
+			vim.notify(("autoScheme: cannot find colorscheme '%s'"):format(name), vim.log.levels.WARN)
+		end)
+		return
+	end
+	if cfg.refresh_lualine then
+		-- schedule so lualine rebuilds after highlights settle
+		vim.schedule(refresh_lualine)
+		-- also helps in some setups:
+		vim.schedule(function()
+			pcall(vim.cmd, "silent! redrawstatus")
+		end)
+	end
+end
+
+local function resolve_scheme(ft)
+	for _, s in ipairs(M.config.schemes or {}) do
+		if s.filetype == ft then
+			return s.colorscheme
+		end
+	end
+	return M.config.default
+end
 
 function M.setup(opts)
 	M.config = vim.tbl_deep_extend("force", M.config, opts or {})
-	opts = opts or {}
-	vim.api.nvim_create_autocmd("BufEnter", {
+
+	vim.api.nvim_create_autocmd("FileType", {
+		desc = "autoScheme: switch colorscheme per filetype",
 		callback = function(args)
-			local buftype = vim.bo[args.buf].buftype
+			local bt = vim.bo[args.buf].buftype
+			if bt ~= "" then
+				return
+			end
+
+			if M.config.once_per_buffer and applied[args.buf] then
+				return
+			end
+			applied[args.buf] = true
+
 			local ft = vim.bo[args.buf].filetype
-
-			if buftype ~= "" then
+			if not ft or ft == "" then
 				return
 			end
 
-			if ft == nil or ft == "" then
+			local target = resolve_scheme(ft)
+			if not target or target == "" or target == vim.g.colors_name then
 				return
 			end
 
-			local matched = false
-			for _, scheme in pairs(M.config.schemes) do
-				if ft == scheme.filetype then
-					local ok, _ = pcall(vim.cmd, "colorscheme " .. scheme.colorscheme)
-					if not ok then
-						print("Error: Cannot find color scheme '" .. scheme.colorscheme .. "'")
-					end
-					matched = true
-					break
-				end
-			end
-
-			if not matched then
-				local ok, _ = pcall(vim.cmd, "colorscheme " .. M.config.default)
-				if not ok then
-					print("Error: Cannot find default color scheme '" .. M.config.default .. "'")
-				end
+			-- defer a bit to avoid race with other FileType setups (incl. lualine/lsp)
+			if M.config.defer_ms and M.config.defer_ms > 0 then
+				vim.defer_fn(function()
+					apply_colorscheme(target, M.config)
+				end, M.config.defer_ms)
+			else
+				vim.schedule(function()
+					apply_colorscheme(target, M.config)
+				end)
 			end
 		end,
 	})
