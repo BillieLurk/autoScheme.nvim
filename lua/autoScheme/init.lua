@@ -1,14 +1,11 @@
 local M = {}
-
 M.config = {
 	schemes = {},
 	default = "",
-	once_per_buffer = true,
-	defer_ms = 5, -- small delay to avoid UI race
-	refresh_lualine = true, -- refresh lualine after changing scheme
+	once_per_buffer = false, -- no longer relevant, but kept for compatibility
+	defer_ms = 5,
+	refresh_lualine = true,
 }
-
-local applied = {} ---@type table<integer, boolean>
 
 local function refresh_lualine()
 	local ok, lualine = pcall(require, "lualine")
@@ -53,31 +50,22 @@ end
 
 function M.setup(opts)
 	M.config = vim.tbl_deep_extend("force", M.config, opts or {})
-
-	vim.api.nvim_create_autocmd("FileType", {
-		desc = "autoScheme: switch colorscheme per filetype",
+	vim.api.nvim_create_autocmd({ "BufEnter" }, {
+		desc = "autoScheme: switch colorscheme per buffer/filetype on buffer enter",
 		callback = function(args)
 			local bt = vim.bo[args.buf].buftype
 			if bt ~= "" then
 				return
 			end
-
-			if M.config.once_per_buffer and applied[args.buf] then
-				return
-			end
-			applied[args.buf] = true
-
 			local ft = vim.bo[args.buf].filetype
 			if not ft or ft == "" then
 				return
 			end
-
 			local target = resolve_scheme(ft)
 			if not target or target == "" or target == vim.g.colors_name then
 				return
 			end
-
-			-- defer a bit to avoid race with other FileType setups (incl. lualine/lsp)
+			-- defer a bit to avoid race with other events (like lualine/lsp)
 			if M.config.defer_ms and M.config.defer_ms > 0 then
 				vim.defer_fn(function()
 					apply_colorscheme(target, M.config)
