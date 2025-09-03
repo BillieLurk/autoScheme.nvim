@@ -35,9 +35,7 @@ local function apply_colorscheme(name, cfg)
 		return
 	end
 	if cfg.refresh_lualine then
-		-- schedule so lualine rebuilds after highlights settle
 		vim.schedule(refresh_lualine)
-		-- also helps in some setups:
 		vim.schedule(function()
 			pcall(vim.cmd, "silent! redrawstatus")
 		end)
